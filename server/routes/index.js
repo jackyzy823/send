@@ -9,6 +9,7 @@ const language = require('../middleware/language');
 const pages = require('./pages');
 const filelist = require('./filelist');
 const clientConstants = require('../clientConstants');
+const { getFxaConfig } = require('../fxa');
 
 const IS_DEV = config.env === 'development';
 const ID_REGEX = '([0-9a-fA-F]{10,16})';
@@ -94,7 +95,21 @@ module.exports = function(app) {
   app.use(bodyParser.json());
   app.use(bodyParser.text());
   app.get('/', language, pages.index);
-  app.get('/config', function(req, res) {
+  app.get('/config', async function(req, res) {
+    let authConfig = null;
+    if (config.fxa_client_id) {
+      try {
+        authConfig = await getFxaConfig();
+        authConfig.client_id = config.fxa_client_id;
+      } catch (e) {
+        // continue without accounts
+      }
+    }
+    if(authConfig){
+      // (1) null or (2) {} or (3) if null do not have key?
+      // current choose 3
+      clientConstants['AUTH_CONFIG'] = authConfig;
+    }
     res.json(clientConstants);
   });
   app.get('/error', language, pages.blank);
